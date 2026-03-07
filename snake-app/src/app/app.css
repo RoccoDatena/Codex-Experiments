@@ -1,0 +1,118 @@
+:host {
+  color-scheme: light;
+  font-family: "Segoe UI", Arial, sans-serif;
+  color: #0f1b2d;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+.app {
+  margin: 0 auto;
+  width: min(92vw, 460px);
+  min-height: 100vh;
+  display: grid;
+  align-content: center;
+  gap: 0.85rem;
+  padding: 1rem;
+}
+
+.header h1 {
+  margin: 0;
+  font-size: 1.8rem;
+  letter-spacing: 0.3px;
+}
+
+.subtitle {
+  margin: 0.15rem 0 0;
+  color: #204a18;
+  font-size: 0.95rem;
+}
+
+.hud {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.5rem;
+  background: rgba(255, 255, 255, 0.62);
+  border: 1px solid #6aa84f;
+  border-radius: 10px;
+  padding: 0.55rem 0.65rem;
+}
+
+.hud p {
+  margin: 0;
+  text-align: center;
+  font-size: 0.95rem;
+}
+
+.board-wrap {
+  position: relative;
+}
+
+canvas {
+  width: 100%;
+  height: auto;
+  display: block;
+  border: 2px solid #5f8f3f;
+  border-radius: 10px;
+  background: #9fce71;
+  box-shadow: 0 8px 20px rgba(30, 68, 26, 0.24);
+}
+
+.overlay {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  margin: 0;
+  background: rgba(15, 27, 45, 0.78);
+  color: #fff;
+  border-radius: 8px;
+  padding: 0.45rem 0.65rem;
+  font-size: 0.9rem;
+}
+
+.actions,
+.controls,
+.controls-row {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.controls {
+  flex-direction: column;
+}
+
+button {
+  border: 1px solid #4f7b34;
+  background: #f3ffe6;
+  color: inherit;
+  padding: 0.5rem 0.75rem;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.hint {
+  margin: 0;
+  font-size: 0.9rem;
+  color: #204a18;
+}
+
+@media (max-width: 420px) {
+  .hud {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (min-width: 760px) {
+  .controls {
+    display: none;
+  }
+}

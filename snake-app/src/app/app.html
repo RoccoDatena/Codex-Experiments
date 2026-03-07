@@ -1,0 +1,37 @@
+<main class="app">
+  <header class="header">
+    <h1>Snake Field</h1>
+    <p class="subtitle">Classic snake with football-field style</p>
+  </header>
+
+  <section class="hud">
+    <p>Goal: <strong>{{ state.score }}</strong></p>
+    <p>Best: <strong>{{ bestScore }}</strong></p>
+    <p>{{ statusText }}</p>
+  </section>
+
+  <div class="board-wrap">
+    <canvas #board width="400" height="400" aria-label="Snake game board"></canvas>
+    @if (state.gameOver) {
+      <p class="overlay">Game Over - press Restart</p>
+    }
+  </div>
+
+  <section class="actions">
+    <button type="button" (click)="togglePause()" [disabled]="state.gameOver">
+      {{ paused ? 'Resume' : 'Pause' }}
+    </button>
+    <button type="button" (click)="restart()">Restart</button>
+  </section>
+
+  <section class="controls" aria-label="On-screen controls">
+    <button type="button" (click)="setDirection('up')">Up</button>
+    <div class="controls-row">
+      <button type="button" (click)="setDirection('left')">Left</button>
+      <button type="button" (click)="setDirection('down')">Down</button>
+      <button type="button" (click)="setDirection('right')">Right</button>
+    </div>
+  </section>
+
+  <p class="hint">Arrow keys or WASD. Space = pause/resume.</p>
+</main>
