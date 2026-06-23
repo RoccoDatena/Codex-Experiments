@@ -1,0 +1,47 @@
+﻿.login-wrap {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  background: radial-gradient(circle at top right, #95b5d6, #dbe8f4);
+}
+
+.card {
+  width: min(400px, 92vw);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 24px;
+  background: #fff;
+  border-radius: 14px;
+  box-shadow: 0 12px 30px rgba(16, 40, 68, 0.18);
+}
+
+.card h1 {
+  margin: 0;
+}
+
+label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+input {
+  border: 1px solid #c9d7e8;
+  border-radius: 8px;
+  padding: 10px;
+}
+
+button {
+  border: 0;
+  border-radius: 8px;
+  padding: 11px;
+  background: #102844;
+  color: #fff;
+  cursor: pointer;
+}
+
+.error {
+  margin: 0;
+  color: #b42318;
+}

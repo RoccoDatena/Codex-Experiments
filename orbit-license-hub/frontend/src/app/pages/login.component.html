@@ -1,0 +1,20 @@
+﻿<section class="login-wrap">
+  <form [formGroup]="form" (ngSubmit)="submit()" class="card">
+    <h1>Orbit License Hub</h1>
+    <p>Accedi con username e password.</p>
+
+    <label>
+      Username
+      <input type="text" formControlName="username" />
+    </label>
+
+    <label>
+      Password
+      <input type="password" formControlName="password" />
+    </label>
+
+    <p class="error" *ngIf="error">{{ error }}</p>
+
+    <button type="submit">Accedi</button>
+  </form>
+</section>

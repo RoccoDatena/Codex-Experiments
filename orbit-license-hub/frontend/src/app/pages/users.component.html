@@ -1,0 +1,81 @@
+<section class="panel">
+  <h2>Utenti</h2>
+  <div class="toolbar">
+    <input [(ngModel)]="search" placeholder="Filtro username/email" />
+    <select [(ngModel)]="sort">
+      <option value="username,asc">Username A-Z</option>
+      <option value="username,desc">Username Z-A</option>
+      <option value="id,desc">Piu recenti</option>
+    </select>
+    <input type="number" [(ngModel)]="tenantFilter" placeholder="Tenant ID" />
+    <button type="button" (click)="load()">Cerca</button>
+    <button type="button" (click)="openCreate()">Nuovo utente</button>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Username</th>
+        <th>Email</th>
+        <th>Ruolo</th>
+        <th>Tenant</th>
+        <th>Extra permessi</th>
+        <th>Attivo</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr *ngFor="let item of items">
+        <td>{{ item.id }}</td>
+        <td>{{ item.username }}</td>
+        <td>{{ item.email }}</td>
+        <td>{{ item.role }}</td>
+        <td>{{ item.tenantId || '-' }}</td>
+        <td>{{ item.extraPermissions.join(', ') || '-' }}</td>
+        <td>{{ item.enabled ? 'SI' : 'NO' }}</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="modal-backdrop" *ngIf="showForm">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>Nuovo utente</h3>
+        <button type="button" class="icon" (click)="closeForm()">X</button>
+      </div>
+
+      <form class="form-grid" [formGroup]="form" (ngSubmit)="submit()">
+        <label>
+          Username
+          <input type="text" formControlName="username" />
+        </label>
+        <label>
+          Email
+          <input type="email" formControlName="email" />
+        </label>
+        <label>
+          Password
+          <input type="password" formControlName="password" />
+        </label>
+        <label>
+          Ruolo
+          <select formControlName="role">
+            <option *ngFor="let role of roles" [value]="role">{{ role }}</option>
+          </select>
+        </label>
+        <label>
+          Tenant ID (se non SuperAdmin)
+          <input type="number" formControlName="tenantId" />
+        </label>
+        <label class="full">
+          Extra permessi (comma separated)
+          <input type="text" formControlName="extraPermissionsRaw" />
+        </label>
+        <div class="actions">
+          <button type="submit">Crea utente</button>
+          <button type="button" (click)="closeForm()">Annulla</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</section>

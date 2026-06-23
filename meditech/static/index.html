@@ -1,0 +1,915 @@
+<!doctype html>
+<html lang="it">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Basilicata Rain Days</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+  <link rel="stylesheet" href="./static/styles.css">
+</head>
+
+<body>
+  <div id="rain-layer" aria-hidden="true">
+    <iframe src="/static/rain.html" title="" tabindex="-1"></iframe>
+  </div>
+  <main>
+    <section class="intro">
+      <h1>Giorni di pioggia in Basilicata</h1>
+      <p>
+        Serie annuale 2000-2019 dal dataset CMCC DDS
+        <code>europe-extreme-precipitation-risk-indicators / yearly / rr1</code>.
+      </p>
+    </section>
+
+    <section class="toolbar">
+      <div class="toolbar-controls">
+        <div class="year-controls">
+          <label>
+            <span class="label">Modalità</span>
+            <select id="yearMode" class="input-field">
+              <option value="range">Intervallo</option>
+              <option value="single">Anno Singolo</option>
+            </select>
+          </label>
+          <label id="startYearLabel">
+            <span class="label" id="startYearText">Anno iniziale</span>
+            <select id="startYear" class="input-field"></select>
+          </label>
+          <label id="endYearLabel">
+            <span class="label">Anno finale</span>
+            <select id="endYear" class="input-field"></select>
+          </label>
+            <label>
+              <span class="label">Area / Comune</span>
+              <select id="locationSelect" class="input-field">
+                <option value="">Media Regionale (Basilicata)</option>
+                <option value="prov-potenza">Provincia di Potenza</option>
+                <option value="prov-matera">Provincia di Matera</option>
+              </select>
+            </label>
+        </div>
+        <div>
+          <span class="label">Variabili</span>
+          <div class="checks">
+            <label><input id="varRr1" type="checkbox" checked> Giorni di pioggia (`rr1`)</label>
+            <label><input id="varCwd" type="checkbox"> Giorni consecutivi di pioggia (`cwd`)</label>
+            <label><input id="varRr20mm" type="checkbox"> Eventi superiori a 20 mm (`rr20mm`)</label>
+          </div>
+        </div>
+        <div class="toolbar-actions">
+          <button id="loadButton" class="btn btn-primary">Carica dati DDS</button>
+          <button id="refreshButton" class="btn btn-secondary">Aggiorna da Sorgente</button>
+        </div>
+      </div>
+      <span id="status" class="status">In attesa.</span>
+    </section>
+    <div class="hide">
+      <section class="panel">
+        <div id="chartContainer" class="chart-list" aria-label="Grafici annuali"></div>
+        <p id="chartNote" class="note"></p>
+      </section>
+
+      <section class="panel">
+        <div class="panel-grid">
+          <div>
+            <h2 class="panel-title">Mappa per provincia</h2>
+            <div id="provinceMap" aria-label="Mappa delle province della Basilicata"></div>
+          </div>
+          <div class="map-controls">
+            <div>
+              <span class="label">Variabile in mappa</span>
+              <select id="mapVariable"></select>
+            </div>
+            <div>
+              <span class="label">Anno in mappa</span>
+              <select id="mapYear"></select>
+            </div>
+            <div id="mapSummary" class="note"></div>
+            <div id="mapLegend" class="legend-box"></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="meta-grid">
+        <article>
+          <span class="label">Dataset</span>
+          <div id="datasetName" class="value">-</div>
+        </article>
+        <article>
+          <span class="label">Variabili</span>
+          <div id="variableName" class="value">-</div>
+        </article>
+        <article>
+          <span class="label">Sorgente</span>
+          <div id="sourceName" class="value">-</div>
+        </article>
+        <article>
+          <span class="label">Bounding box</span>
+          <div id="bboxValue" class="value">-</div>
+        </article>
+        <article>
+          <span class="label">Anni richiesti</span>
+          <div id="yearsValue" class="value">-</div>
+        </article>
+      </section>
+
+      <section class="panel">
+        <h2 class="panel-title">Valori annuali</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Anno</th>
+              <th>Dati</th>
+            </tr>
+          </thead>
+          <tbody id="tableBody"></tbody>
+        </table>
+      </section>
+    </div>
+
+
+  </main>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <script>
+    const loadButton = document.getElementById("loadButton");
+    const refreshButton = document.getElementById("refreshButton");
+    const startYearInput = document.getElementById("startYear");
+    const endYearInput = document.getElementById("endYear");
+    const yearModeInput = document.getElementById("yearMode");
+    const endYearLabel = document.getElementById("endYearLabel");
+    const startYearText = document.getElementById("startYearText");
+    const varRr1Input = document.getElementById("varRr1");
+    const varCwdInput = document.getElementById("varCwd");
+    const varRr20mmInput = document.getElementById("varRr20mm");
+    const statusNode = document.getElementById("status");
+    const dataContent = document.querySelector(".hide");
+    const chartContainer = document.getElementById("chartContainer");
+    const chartNote = document.getElementById("chartNote");
+    const tableBody = document.getElementById("tableBody");
+
+    const datasetName = document.getElementById("datasetName");
+    const variableName = document.getElementById("variableName");
+    const sourceName = document.getElementById("sourceName");
+    const bboxValue = document.getElementById("bboxValue");
+    const yearsValue = document.getElementById("yearsValue");
+    const mapVariableSelect = document.getElementById("mapVariable");
+    const mapYearSelect = document.getElementById("mapYear");
+    const mapSummary = document.getElementById("mapSummary");
+    const mapLegend = document.getElementById("mapLegend");
+    const locationSelect = document.getElementById("locationSelect");
+
+    let latestPayload = null;
+    let map = null;
+    let provinceLayer = null;
+    let locationMarker = null;
+    let provinceGeoJson = null;
+    let monetizationCatalog = null;
+    let comuniData = [];
+
+    function populateYearSelect(select, selectedYear) {
+      select.innerHTML = "";
+      for (let year = 2000; year <= 2019; year += 1) {
+        const option = document.createElement("option");
+        option.value = String(year);
+        option.textContent = String(year);
+        option.selected = year === selectedYear;
+        select.appendChild(option);
+      }
+    }
+
+    populateYearSelect(startYearInput, 2000);
+    populateYearSelect(endYearInput, 2019);
+
+
+    async function ensureMap() {
+      if (map) return;
+      map = L.map("provinceMap");
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        attribution: "&copy; OpenStreetMap contributors"
+      }).addTo(map);
+      const response = await fetch("/static/basilicata-provinces.geojson");
+      provinceGeoJson = await response.json();
+    }
+
+    function setLoading(isLoading, message) {
+      loadButton.disabled = isLoading;
+      refreshButton.disabled = isLoading;
+      statusNode.textContent = message;
+      statusNode.className = "status";
+    }
+
+    function setError(message) {
+      statusNode.textContent = message;
+      statusNode.className = "status error";
+    }
+
+    function fetchSeries(forceRefresh = false) {
+      const mode = yearModeInput.value;
+      const start = Number(startYearInput.value);
+      const end = mode === "single" ? start : Number(endYearInput.value);
+      const variables = [];
+      const location = locationSelect.value;
+      if (varRr1Input.checked) variables.push("rr1");
+      if (varCwdInput.checked) variables.push("cwd");
+      if (varRr20mmInput.checked) variables.push("rr20mm");
+      if (!Number.isInteger(start) || !Number.isInteger(end) || start > end) {
+        setError("Controlla gli anni: l'anno iniziale deve essere minore o uguale a quello finale.");
+        return;
+      }
+      if (variables.length === 0) {
+        setError("Seleziona almeno una variabile.");
+        return;
+      }
+      dataContent.classList.remove("is-visible");
+      setLoading(true, forceRefresh ? "Scarico di nuovo il file DDS..." : "Carico i dati...");
+      const params = new URLSearchParams();
+      params.set("start", String(start));
+      params.set("end", String(end));
+      params.set("refresh", forceRefresh ? "1" : "0");
+      if (location) params.set("location", location);
+      variables.forEach((variable) => params.append("variable", variable));
+      fetch(`/api/series?${params.toString()}`)
+        .then((response) => response.json().then((body) => ({ ok: response.ok, body })))
+        .then(({ ok, body }) => {
+          if (!ok) {
+            throw new Error(body.error || "Errore durante il recupero dei dati.");
+          }
+          render(body);
+          latestPayload = body;
+          dataContent.classList.add("is-visible");
+          setLoading(false, "Dati caricati.");
+        })
+        .catch((error) => {
+          setError(error.message);
+        })
+        .finally(() => {
+          loadButton.disabled = false;
+          refreshButton.disabled = false;
+        });
+    }
+
+    function render(data) {
+      datasetName.textContent = `${data.dataset} / ${data.product}`;
+      variableName.textContent = data.variables.map((key) => data.variable_labels[key]).join(", ");
+      sourceName.textContent = data.source;
+      bboxValue.textContent = `N ${data.bbox.north}, S ${data.bbox.south}, E ${data.bbox.east}, W ${data.bbox.west}`;
+      yearsValue.textContent = `${data.request_years[0]} - ${data.request_years[data.request_years.length - 1]}`;
+      chartNote.textContent = data.note;
+      renderTable(data.years, data.series);
+      renderChart(data.years, data.series);
+      renderMapControls(data);
+      renderProvinceMap(data);
+    }
+
+    function renderTable(years, series) {
+      tableBody.innerHTML = "";
+      years.forEach((year, index) => {
+        const valuesText = Object.entries(series)
+          .map(([key, item]) => `${item.label}: ${item.values[index] ?? "-"}`)
+          .join(" | ");
+        const row = document.createElement("tr");
+        row.innerHTML = `<td>${year}</td><td>${valuesText}</td>`;
+        tableBody.appendChild(row);
+      });
+    }
+
+    function renderChart(years, series) {
+      chartContainer.innerHTML = "";
+      Object.entries(series).forEach(([key, item]) => {
+        const chartCard = document.createElement("article");
+        const heading = document.createElement("h3");
+        const chartWrap = document.createElement("div");
+        const chart = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+        const title = document.createElementNS("http://www.w3.org/2000/svg", "title");
+
+        chartCard.className = "chart-card";
+        heading.className = "chart-heading";
+        heading.textContent = item.label;
+        chartWrap.className = "chart-wrap";
+        chart.setAttribute("viewBox", "0 0 920 360");
+        chart.setAttribute("role", "img");
+        chart.setAttribute("aria-label", `Andamento annuale: ${item.label}`);
+        title.textContent = `Andamento annuale: ${item.label}`;
+
+        chart.appendChild(title);
+        chart.innerHTML += buildChartMarkup(years, key, item);
+        chartWrap.appendChild(chart);
+        chartCard.append(heading, chartWrap);
+        chartContainer.appendChild(chartCard);
+      });
+    }
+
+    function buildChartMarkup(years, key, item) {
+      const width = 920;
+      const height = 360;
+      const margin = { top: 20, right: 24, bottom: 48, left: 60 };
+      const innerWidth = width - margin.left - margin.right;
+      const innerHeight = height - margin.top - margin.bottom;
+
+      const palette = {
+        rr1: "#2f6fed",
+        cwd: "#d94841",
+        rr20mm: "#0f8b6f"
+      };
+
+      const numericValues = item.values.filter((value) => value !== null);
+      const valuesForScale = numericValues.length ? numericValues : [0];
+      const minValue = Math.min(...valuesForScale);
+      const maxValue = Math.max(...valuesForScale);
+      const range = Math.max(1, maxValue - minValue);
+
+      const xStep = innerWidth / Math.max(1, years.length - 1);
+      const toX = (index) => margin.left + index * xStep;
+      const toY = (value) => margin.top + innerHeight - ((value - minValue) / range) * innerHeight;
+
+      const color = palette[key] || "#2f6fed";
+      const points = item.values
+        .map((value, index) => value === null ? null : `${toX(index)},${toY(value)}`)
+        .filter(Boolean)
+        .join(" ");
+      const markers = item.values
+        .map((value, index) => {
+          if (value === null) return "";
+          return `
+              <circle cx="${toX(index)}" cy="${toY(value)}" r="4" fill="${color}">
+                <title>${years[index]}: ${value}</title>
+              </circle>
+            `;
+        })
+        .join("");
+      const lineMarkup = `<polyline fill="none" stroke="${color}" stroke-width="3" points="${points}" />${markers}`;
+
+      const labels = years
+        .map((year, index) => {
+          return `<text x="${toX(index)}" y="${height - 22}" text-anchor="middle" font-size="12" fill="#60708a">${year}</text>`;
+        })
+        .join("");
+
+      const gridLines = Array.from({ length: 5 }, (_, idx) => {
+        const value = minValue + (range / 4) * idx;
+        const y = margin.top + innerHeight - (innerHeight / 4) * idx;
+        return `
+            <line x1="${margin.left}" y1="${y}" x2="${width - margin.right}" y2="${y}" stroke="#d9e1ec" />
+            <text x="${margin.left - 10}" y="${y + 4}" text-anchor="end" font-size="12" fill="#60708a">${value.toFixed(1)}</text>
+          `;
+      }).join("");
+
+      return `
+          <rect x="0" y="0" width="${width}" height="${height}" fill="#ffffff" />
+          ${gridLines}
+          <line x1="${margin.left}" y1="${height - margin.bottom}" x2="${width - margin.right}" y2="${height - margin.bottom}" stroke="#90a0b7" />
+          <line x1="${margin.left}" y1="${margin.top}" x2="${margin.left}" y2="${height - margin.bottom}" stroke="#90a0b7" />
+          ${lineMarkup}
+          ${labels}
+        `;
+    }
+
+    function renderMapControls(data) {
+      mapVariableSelect.innerHTML = data.variables
+        .map((key) => `<option value="${key}">${data.variable_labels[key]}</option>`)
+        .join("");
+      mapYearSelect.innerHTML = data.years
+        .map((year) => `<option value="${year}">${year}</option>`)
+        .join("");
+    }
+
+    function getColorScale(value, min, max) {
+      if (value === null || Number.isNaN(value)) return "#e5ebf5";
+      const span = Math.max(1, max - min);
+      const ratio = (value - min) / span;
+      const start = { r: 214, g: 230, b: 255 };
+      const end = { r: 31, g: 91, b: 214 };
+      const r = Math.round(start.r + (end.r - start.r) * ratio);
+      const g = Math.round(start.g + (end.g - start.g) * ratio);
+      const b = Math.round(start.b + (end.b - start.b) * ratio);
+      return `rgb(${r}, ${g}, ${b})`;
+    }
+
+    function formatMapValue(value) {
+      if (value === null || Number.isNaN(value)) return "-";
+      return String(Math.round(value));
+    }
+
+    async function renderProvinceMap(data) {
+      await ensureMap();
+      const variable = mapVariableSelect.value || data.variables[0];
+      const year = mapYearSelect.value || data.years[0];
+      const yearIndex = data.years.indexOf(year);
+      if (yearIndex === -1) return;
+
+      const provinceValues = data.province_series[variable].provinces;
+      const entries = Object.entries(provinceValues).map(([province, values]) => ({
+        province,
+        value: values[yearIndex]
+      }));
+      const numericValues = entries.map((item) => item.value).filter((value) => value !== null);
+      const min = numericValues.length ? Math.min(...numericValues) : 0;
+      const max = numericValues.length ? Math.max(...numericValues) : 1;
+
+      if (provinceLayer) {
+        provinceLayer.remove();
+      }
+
+      provinceLayer = L.geoJSON(provinceGeoJson, {
+        style: (feature) => {
+          const provinceName = feature.properties.prov_name;
+          const value = provinceValues[provinceName]?.[yearIndex] ?? null;
+          return {
+            color: "#38527a",
+            weight: 1.5,
+            fillColor: getColorScale(value, min, max),
+            fillOpacity: 0.78
+          };
+        },
+        onEachFeature: (feature, layer) => {
+          const provinceName = feature.properties.prov_name;
+          const value = provinceValues[provinceName]?.[yearIndex] ?? null;
+          layer.bindTooltip(`${provinceName}: ${formatMapValue(value)} (${data.variable_labels[variable]})`);
+        }
+      }).addTo(map);
+
+      if (locationMarker) {
+        locationMarker.remove();
+        locationMarker = null;
+      }
+
+      if (data.location) {
+        locationMarker = L.marker([data.location.lat, data.location.lon])
+          .addTo(map)
+          .bindPopup(`<strong>${data.location.nome}</strong><br>Dati puntuali estratti dal dataset.`)
+          .openPopup();
+        map.setView([data.location.lat, data.location.lon], 10);
+      } else if (data.province) {
+        // Zoom sulla provincia selezionata
+        const features = provinceGeoJson.features;
+        const feature = features.find(f => f.properties.prov_name === data.province);
+        if (feature) {
+          const tempLayer = L.geoJSON(feature);
+          map.fitBounds(tempLayer.getBounds(), { padding: [20, 20] });
+        }
+      } else {
+        map.fitBounds(provinceLayer.getBounds(), { padding: [20, 20] });
+      }
+
+      mapSummary.textContent = `${data.variable_labels[variable]} nelle province della Basilicata per l'anno ${year}.`;
+      renderLegend(min, max);
+    }
+
+    function renderLegend(min, max) {
+      const stops = [0, 0.33, 0.66, 1];
+      const shownValues = new Set();
+      mapLegend.innerHTML = "";
+      stops.forEach((stop) => {
+        const value = min + (max - min) * stop;
+        const formattedValue = formatMapValue(value);
+        if (shownValues.has(formattedValue)) return;
+        shownValues.add(formattedValue);
+
+        const row = document.createElement("div");
+        const swatch = document.createElement("span");
+        const label = document.createElement("span");
+
+        row.className = "legend-row";
+        swatch.className = "legend-swatch";
+        swatch.style.backgroundColor = getColorScale(value, min, max);
+        label.textContent = formattedValue;
+
+        row.append(swatch, label);
+        mapLegend.appendChild(row);
+      });
+    }
+
+    mapVariableSelect.addEventListener("change", () => {
+      if (latestPayload) renderProvinceMap(latestPayload);
+    });
+
+    mapYearSelect.addEventListener("change", () => {
+      if (latestPayload) renderProvinceMap(latestPayload);
+    });
+
+
+    loadButton.addEventListener("click", () => fetchSeries(false));
+    refreshButton.addEventListener("click", () => fetchSeries(true));
+
+    yearModeInput.addEventListener("change", () => {
+      if (yearModeInput.value === "single") {
+        endYearLabel.style.display = "none";
+        startYearText.textContent = "Seleziona Anno";
+      } else {
+        endYearLabel.style.display = "block";
+        startYearText.textContent = "Anno iniziale";
+      }
+    });
+
+    loadComuni();
+
+  </script>
+  <script>
+    (() => {
+      "use strict";
+
+      /* =========================================================================
+                    1) CONFIGURATION
+                    scriptSources : Ordered fallback list. The first one that
+                    loads successfully will be used. This lets
+                    the same HTML work on localhost (relative
+                    path), on your own domain, and on GitHub
+                    Pages without any changes.
+    
+                    debounceMS    : How long to wait after the last resize
+                    event before rebuilding the effect.
+    
+                    storageKey    : localStorage key reserved for future use
+                    (e.g. saving user preferences).
+                   ========================================================================= */
+      const CONFIG = {
+        /* Fallback order:
+                       - First one is usually your local copy (relative to the current page).
+                       - Then your own domain.
+                       - Finally the GitHub Pages copy.
+                
+                       IMPORTANT: We do NOT check availability with fetch/HEAD (CORS/HEAD can lie).
+                       We load scripts via <script src> and rely on onload/onerror for true fallback. */
+        scriptSources: [
+          /*"assets/js/raindrops.js",*/
+          "https://fyildiz1974.github.io/web/files/raindrops.js",
+          "https://fthyldz.com/bio/js/raindrops.js"
+        ],
+
+        /* Resize debounce: reload only after resizing “settles”. */
+        debounceMS: 250,
+
+        /* Optional: localStorage key if you store settings later. */
+        storageKey: "raindrops_state"
+      };
+
+      /* =========================================================================
+                   2) RUNTIME STATE
+                   ========================================================================= */
+      let timer = null; // Debounce timer for resize
+      let enabled = true; // Master on/off flag
+
+      let lastW = 0,
+        lastH = 0; // prevents pointless reloads
+      let swapToken = 0; // prevents race conditions during rapid resizes
+      let pendingFrame = null; // prevents stacking multiple “new” iframes
+
+      /* For debugging/telemetry: which script URL actually loaded successfully? */
+      let resolvedSource = null;
+
+      /* =========================================================================
+                   3) ACCESSIBILITY: Reduced Motion
+                   Check the OS-level "prefers-reduced-motion" setting.
+                   If active, disable the effect immediately. Also listen
+                   for changes (e.g. user toggles it while the page is open).
+                   ========================================================================= */
+      const mqlReduce = window.matchMedia?.("(prefers-reduced-motion: reduce)");
+      if (mqlReduce?.matches) enabled = false;
+
+      function onReduceMotionChange(e) {
+        enabled = !e.matches;
+        lastW = 0;
+        lastH = 0;
+        mount(true);
+      }
+
+      if (mqlReduce) {
+        if (mqlReduce.addEventListener)
+          mqlReduce.addEventListener("change", onReduceMotionChange);
+        // Modern browsers
+        else if (mqlReduce.addListener)
+          mqlReduce.addListener(
+            onReduceMotionChange
+          ); /* Safari ≤ v13 fallback. Older versions use addListener/removeListener. */
+      }
+
+      /* =========================================================================
+                   4) DOM HELPERS
+                   Makes sure the wrapper <div id="rain-layer"> exists in the
+                   DOM. If someone accidentally removes it, this recreates it.
+                   ========================================================================= */
+      function ensureLayer() {
+        let layer = document.getElementById("rain-layer");
+        if (!layer) {
+          layer = document.createElement("div");
+          layer.id = "rain-layer";
+          layer.setAttribute("aria-hidden", "true");
+          layer.setAttribute("role", "presentation");
+          document.body.appendChild(layer);
+        }
+        return layer;
+      }
+
+      /* =========================================================================
+                   5) VIEWPORT SIZE (mobile-friendly)
+                   Returns the current viewport dimensions. Uses the
+                   visualViewport API when available — this gives more
+                   accurate values on mobile (accounts for on-screen
+                   keyboard, address bar, etc.).
+                   ========================================================================= */
+      function viewportSize() {
+        const vv = window.visualViewport;
+        const w = Math.round(vv?.width ?? document.documentElement.clientWidth);
+        const h = Math.round(vv?.height ?? document.documentElement.clientHeight);
+        return { w, h };
+      }
+
+      function frameSrcdoc() {
+
+        const sourcesAbs = CONFIG.scriptSources.map(
+          (src) => new URL(src, location.href).href
+        );
+
+        return `<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,height=device-height,initial-scale=1,viewport-fit=cover">
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    html,body{width:100%;height:100%;overflow:hidden;background:transparent}
+    #bg-canvas{position:fixed;inset:0;width:100vw;height:100vh;display:block}
+  </style>
+</head>
+<body>
+  <canvas id="bg-canvas" aria-hidden="true"></canvas>
+
+  <script>
+    (function(){
+      /* True fallback: try to load scripts using <script src>.
+         This is more reliable than fetch/HEAD due to CORS and server HEAD behavior. */
+      var sources = ${JSON.stringify(sourcesAbs)};
+      var i = 0;
+
+      function post(type, url){
+        try { parent.postMessage({ type: type, url: url }, "*"); } catch(e){}
+      }
+
+      function tryNext(){
+        if (i >= sources.length) {
+          post("raindrops-source-fail", null);
+          return;
+        }
+
+        var s = document.createElement("script");
+        s.src = sources[i++];
+        s.async = true;
+
+        s.onload = function(){ post("raindrops-source", s.src); };
+        s.onerror = function(){ tryNext(); };
+
+        document.body.appendChild(s);
+      }
+
+      tryNext();
+    })();
+  <\/script>
+   <script>
+  (function(){
+    // Receive pointer coordinates from the parent and re-emit them as mousemove
+    // so raindrops.js can keep its original event logic unchanged.
+    window.addEventListener("message", function(e){
+      if (!e.data || e.data.type !== "raindrops-pointer") return;
+
+      try {
+        var ev = new MouseEvent("mousemove", {
+          clientX: e.data.x,
+          clientY: e.data.y,
+          bubbles: true,
+          cancelable: false
+        });
+
+        // Dispatch on both window and document to match different listener styles
+        window.dispatchEvent(ev);
+        document.dispatchEvent(ev);
+      } catch (err) {
+        // If MouseEvent fails for any reason, silently ignore.
+      }
+    });
+  })();
+<\/script>
+</body>
+</html>`;
+      }
+
+      function mount(force = false) {
+        const layer = ensureLayer();
+
+        /* If disabled (reduced motion or manual), remove everything. */
+        if (!enabled) {
+          layer.replaceChildren();
+          pendingFrame = null;
+          resolvedSource = null;
+          return;
+        }
+
+        /* Skip reload if viewport size did not change. */
+        const { w, h } = viewportSize();
+        // Reload only if there’s more than a 1% change or at least a 20-pixel difference. Ignore insignificant pixel changes.
+        const deltaW = Math.abs(w - lastW);
+        const deltaH = Math.abs(h - lastH);
+        const significantChange =
+          deltaW > Math.max(20, lastW * 0.01) ||
+          deltaH > Math.max(20, lastH * 0.01);
+
+        if (!force && !significantChange && layer.querySelector("iframe")) {
+          // No significant size change; do nothing
+          return;
+        }
+
+        lastW = w;
+        lastH = h;
+
+        /* Prevent accumulating multiple “new” iframes during rapid events. So remove any iframe that's still loading from a previous mount */
+        if (pendingFrame && pendingFrame.parentNode) pendingFrame.remove();
+        pendingFrame = null;
+
+        // Reference to the currently visible iframe (will be removed after swap)
+        const oldFrame = layer.querySelector("iframe");
+
+        /* Create the new renderer iframe. */
+        const newFrame = document.createElement("iframe");
+        newFrame.setAttribute("aria-hidden", "true");
+        newFrame.setAttribute("role", "presentation");
+        newFrame.tabIndex = -1;
+        newFrame.srcdoc = frameSrcdoc();
+
+        /* Race-condition protection:
+                       Only the most recent mount() is allowed to “win”. */
+        const myToken = ++swapToken;
+        pendingFrame = newFrame;
+
+        /* When the new iframe’s document is ready, remove the old iframe. */
+        newFrame.addEventListener(
+          "load",
+          () => {
+            if (myToken !== swapToken) {
+              newFrame.remove();
+              return;
+            }
+
+            pendingFrame = null;
+
+            if (oldFrame) {
+              try {
+                oldFrame.srcdoc = "";
+                oldFrame.src = "about:blank";
+              } catch { }
+              oldFrame.remove();
+            }
+          },
+          { once: true }
+        );
+
+        layer.appendChild(newFrame);
+      }
+
+      function schedule() {
+        clearTimeout(timer);
+        timer = setTimeout(() => mount(false), CONFIG.debounceMS);
+      }
+
+      /* EVENT LISTENERS */
+      window.addEventListener("resize", schedule, { passive: true }); // Desktop: window resize
+      window.addEventListener("orientationchange", schedule, { passive: true }); // Mobile: device rotation
+      window.visualViewport?.addEventListener("resize", schedule, {
+        passive: true
+      }); // Mobile: address bar show/hide, keyboard open/close
+
+      /* =========================================================================
+                   9) VISIBILITY HANDLING (SAVE CPU)
+                   When the tab is hidden (user switches tabs), remove the
+                   iframe to stop GPU/CPU usage. When the tab becomes visible
+                   again, remount the effect fresh.
+                   ========================================================================= */
+
+      let hiddenTimer = null;
+      document.addEventListener("visibilitychange", () => {
+        const layer = ensureLayer();
+        if (document.hidden) {
+          // Clear only if it stays in the background for more than 10 seconds:
+          hiddenTimer = setTimeout(() => {
+            layer.replaceChildren();
+            pendingFrame = null;
+            lastW = 0;
+            lastH = 0;
+            resolvedSource = null;
+          }, 30000); // 30 seconds. Set it to the value you want.
+        } else {
+          clearTimeout(hiddenTimer);
+          hiddenTimer = null;
+          // When it becomes visible again, mount only if the size has changed; don’t force a reload.
+          mount(false);
+        }
+      });
+
+      /* =========================================================================
+                   10) RECEIVE "WHICH SOURCE LOADED" FROM IFRAME
+                   The iframe posts back which script URL it successfully
+                   loaded. We store it in resolvedSource so it can be
+                   queried via RaindropsManager.getSource().
+    
+                   Security: We verify e.source matches our current iframe's
+                   contentWindow to ignore messages from unrelated origins.
+                   ========================================================================= */
+      window.addEventListener(
+        "message",
+        (e) => {
+          const layer = document.getElementById("rain-layer");
+          const f = layer?.querySelector("iframe");
+          if (!f) return;
+
+          /* Ensure the message comes from our current iframe instance. Only accept messages from our own iframe */
+          if (e.source !== f.contentWindow) return;
+
+          if (
+            e.data?.type === "raindrops-source" &&
+            typeof e.data.url === "string"
+          ) {
+            resolvedSource = e.data.url;
+            /* Debugging:*/
+            console.log("[Raindrops] Loaded:", resolvedSource);
+          } else if (e.data?.type === "raindrops-source-fail") {
+            resolvedSource = null;
+            console.warn(
+              "[Raindrops] Could not load raindrops.js from any fallback source."
+            );
+          }
+        },
+        { passive: true }
+      );
+
+      /* =========================================================================
+                   11) INITIAL START
+                   ========================================================================= */
+      mount(true);
+
+      window.RaindropsManager = {
+        /* Force a full re-init (ignores lastW/lastH). */
+        reload() {
+          lastW = 0;
+          lastH = 0;
+          mount(true);
+        },
+
+        /* Enable/disable the effect manually. */
+        setEnabled(v) {
+          enabled = !!v;
+          lastW = 0;
+          lastH = 0;
+          mount(true);
+        },
+
+        /* Is it currently running? */
+        isActive() {
+          const layer = document.getElementById("rain-layer");
+          return !!(enabled && layer && layer.querySelector("iframe"));
+        },
+
+        /* Which script URL ended up loading successfully? */
+        getSource() {
+          return resolvedSource;
+        },
+
+        /* localStorage helpers (safe in sandboxes: wrapped in try/catch) */
+        saveState(key, value) {
+          try {
+            const data = JSON.parse(
+              localStorage.getItem(CONFIG.storageKey) || "{}"
+            );
+            data[key] = value;
+            localStorage.setItem(CONFIG.storageKey, JSON.stringify(data));
+          } catch { }
+        },
+        getState(key, def) {
+          try {
+            const data = JSON.parse(
+              localStorage.getItem(CONFIG.storageKey) || "{}"
+            );
+            return Object.prototype.hasOwnProperty.call(data, key)
+              ? data[key]
+              : def;
+          } catch {
+            return def;
+          }
+        },
+        resetState() {
+          try {
+            localStorage.removeItem(CONFIG.storageKey);
+          } catch { }
+          lastW = 0;
+          lastH = 0;
+          mount(true);
+        }
+      };
+    })();
+
+  </script>
+
+</body>
+
+</html>

@@ -1,0 +1,22 @@
+[
+  {"nome": "Potenza", "lat": 40.6384, "lon": 15.8019},
+  {"nome": "Matera", "lat": 40.6664, "lon": 16.6043},
+  {"nome": "Melfi", "lat": 40.9965, "lon": 15.6514},
+  {"nome": "Pisticci", "lat": 40.3917, "lon": 16.5550},
+  {"nome": "Policoro", "lat": 40.2106, "lon": 16.6714},
+  {"nome": "Lavello", "lat": 41.0475, "lon": 15.7958},
+  {"nome": "Rionero in Vulture", "lat": 40.9234, "lon": 15.6725},
+  {"nome": "Lauria", "lat": 40.0456, "lon": 15.8353},
+  {"nome": "Bernalda", "lat": 40.4036, "lon": 16.6831},
+  {"nome": "Venosa", "lat": 40.9614, "lon": 15.8153},
+  {"nome": "Avigliano", "lat": 40.7303, "lon": 15.7178},
+  {"nome": "Montescaglioso", "lat": 40.5489, "lon": 16.6661},
+  {"nome": "Ferrandina", "lat": 40.4950, "lon": 16.4556},
+  {"nome": "Senise", "lat": 40.1506, "lon": 16.2922},
+  {"nome": "Maratea", "lat": 39.9934, "lon": 15.7208},
+  {"nome": "Tricarico", "lat": 40.6200, "lon": 16.1450},
+  {"nome": "Tito", "lat": 40.5833, "lon": 15.6833},
+  {"nome": "Genzano di Lucania", "lat": 40.8447, "lon": 16.0336},
+  {"nome": "Lagonegro", "lat": 40.1281, "lon": 15.7619},
+  {"nome": "Moliterno", "lat": 40.2394, "lon": 15.8614}
+]
