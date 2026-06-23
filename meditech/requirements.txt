@@ -1,4 +1,0 @@
-matplotlib>=3.10
-netCDF4>=1.7
-numpy>=2.0
-xarray>=2026.4

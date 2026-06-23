@@ -1,5 +1,0 @@
-Periodo: 2010-06-30 -> 2019-06-30
-Dimensioni griglia: 360 lat x 650 lon
-Media complessiva RR20mm: 0.297
-Anno con media spaziale pi? alta: 2010 (0.405)
-Anno con media spaziale pi? bassa: 2015 (0.200)
